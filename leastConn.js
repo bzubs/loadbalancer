@@ -40,9 +40,11 @@ function leastConn(PORT = 3000, backends = [], history = [], index = 0) {
 
             res.on('finish', () => {
                 const laten = Date.now() - start;
+            });
 
-
-            })
+            res.on('end', ()=>{
+                cleanup()
+            });
         })
 
 
