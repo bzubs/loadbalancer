@@ -1,100 +1,69 @@
-#Reverse Proxy Load Balancer
+# Reverse Proxy Load Balancer
 
-Large-scale production-grade reverse proxy designed to operate under configurable latency and throughput constraints.
+A large-scale production-grade, high-performance reverse proxy designed to operate under configurable latency and throughput constraints. This system provides a pluggable architecture for sophisticated traffic distribution and real-time observability.
 
-Supports dynamic load balancing strategies, active health monitoring, runtime metrics, and YAML-based configuration validation.
+## Architecture Overview
 
-##Overview
+The system is built on a modular foundation to ensure high availability and deterministic performance:
 
-This reverse proxy distributes traffic across backend services using pluggable balancing algorithms. It continuously monitors backend health and latency characteristics and adapts routing decisions accordingly.
+* **Request Router:** The entry point that intercepts incoming traffic and dispatches it to the optimal backend.
+* **Strategy Engine:** A pluggable module housing load balancing algorithms (Round Robin, EWMA, etc.).
+* **Health Monitor:** Performs active polling of backends to ensure traffic is only routed to healthy nodes.
+* **Metrics Engine:** Collects runtime statistics and exposes them via a dedicated snapshot endpoint.
+* **Configuration Loader:** A strict YAML parser with fail-fast validation to prevent misconfigured deployments.
 
-The system is designed for:
+---
 
-High availability
+## Features
 
-Latency-aware routing
+### Load Balancing Strategies (v0.2.1)
+The engine supports multiple algorithms tailored for different traffic patterns:
 
-Throughput control
+* **Round Robin:** Simple cyclic distribution.
+* **Least Connections:** Routes to the backend with the fewest active requests.
+* **Least EWMA Latency:** Uses Exponentially Weighted Moving Average to favor historically fast backends.
+* **Least Dynamic Score:** A hybrid approach using the following formula:
+    $$score = avgLatency * (currentRequests + 1)$$
 
-Observability
+### Active Health Polling
+Automatically isolates failing services using periodic `GET /health` probes.
+* **Configurable Intervals:** Fine-tune polling frequency and timeouts.
+* **Dynamic Pool Updates:** Unhealthy nodes are removed and reintroduced without requiring a restart.
 
-Failure isolation
+### Observability
+Access real-time system state via `GET /metrics`. Includes:
+* Backend health status and active connection counts.
+* EWMA latency calculations.
+* Historical metrics buffer for trend analysis.
 
-##Features
-Load Balancing Algorithms (v0.2.1)
+---
 
-Round Robin
+## 🛠 Configuration
 
-Least Connections
+The system uses a `config.yaml` file for all operational parameters. Below is a standard production example:
 
-Least EWMA Latency
+Ex:
+Refer to config.example.yaml for full reference.
 
-Least Dynamic Score
+---
 
-score = avgLatency * (currentRequests + 1)
+## 📈 Operational Characteristics
 
-All strategies are selectable via configuration.
+| Feature | Description |
+| :--- | :--- |
+| **I/O Model** | Non-blocking, event-driven I/O. |
+| **Failure Handling** | Returns `503 Service Unavailable` if the entire pool is unhealthy. |
+| **Validation** | Fail-fast startup; process exits on invalid YAML schema. |
+| **Isolation** | Metrics collection is decoupled from the primary request path. |
 
-##Active Health Polling
+---
 
-Backends are periodically probed via a configurable endpoint:
+## Testing
 
-GET /health
+### Load Testing
+To benchmark the gateway under stress, use `autocannon`:
+```bash
+autocannon -c 50 -d 10 "http://localhost:8080"
+```
 
-Unhealthy backends are automatically excluded from routing decisions.
-
-Configuration:
-
-healthCheck:
-  interval: 1000        # ms
-  path: /health
-  timeout: 3000
-Metrics Endpoint
-
-A snapshot of runtime state is exposed at:
-
-GET /metrics
-
-Returns:
-
-Backend health status
-
-Active connections per backend
-
-Average latency (EWMA)
-
-Dynamic score values
-
-Historical metrics snapshot
-
-##Metrics configuration:
-
-metrics:
-  interval: 5000
-  historySize: 100
-##Dynamic YAML Configuration
-
-The proxy loads configuration at startup from YAML.
-
-Validation includes:
-
-Required field verification
-
-Strategy validation
-
-Numeric bounds checks
-
-Backend definition validation
-
-Failure-fast behavior on invalid config
-
-Example:
-Refer to config.example.yaml for more reference.
-
-##Testing
-Local Client
-node client.js
-Load Testing with autocannon
-autocannon -c 50 -d 10 "http://localhost:PORT"
-
-Replace PORT with configured gateway port.
+---
