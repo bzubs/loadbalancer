@@ -1,13 +1,15 @@
 import http from 'http';
 
 
-function leastLaten(backends=[]){
+function leastLaten(backends = []) {
 
-    if(backends.length==0){
+    if (backends.length == 0) {
         return null;
     }
 
-    const balancer = http.createServer((req, res)=>{
+    backends = backends.filter(b => b.health !== 0);
+
+    const balancer = http.createServer((req, res) => {
         const backend = backends.reduce((a, b) => {
             return a.avgLatency < b.avgLatency ? a : b;
         });
@@ -15,7 +17,7 @@ function leastLaten(backends=[]){
 
         let cleaned = false;
         function cleanup() {
-            if(cleaned) return;
+            if (cleaned) return;
             cleaned = true;
             backend.currentRequests--;
         }
@@ -45,10 +47,10 @@ function leastLaten(backends=[]){
                 cleanup();
             });
 
-            res.on('close', ()=>{
+            res.on('close', () => {
                 cleanup()
             });
-            res.on('error', (err)=>{
+            res.on('error', (err) => {
                 console.error(`Error in response: ${err.message}`);
                 cleanup();
             });
@@ -65,8 +67,8 @@ function leastLaten(backends=[]){
 
     });
 
-        return balancer;
+    return balancer;
 
 };
 
-export {leastLaten};
+export { leastLaten };

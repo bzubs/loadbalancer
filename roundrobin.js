@@ -1,10 +1,13 @@
 import http from 'http';
 
-function roundRobin(PORT=3000, backends = [], history =[], index = 0) {
+function roundRobin(backends = [], index = 0, alpha=0.2) {
 
     if(backends.length === 0){
         return null;
     }
+
+    backends = backends.filter(b => b.health !== 0);
+
 
     const balancer = http.createServer((req, res) => {
 
@@ -36,8 +39,7 @@ function roundRobin(PORT=3000, backends = [], history =[], index = 0) {
             res.on('finish', () => {
                 const laten = Date.now() - start;
                 //console.log(`${req.method} ${req.url} → ${backend.port} | ${laten}ms`);
-                backend.latency.push(laten);
-                history.push({ timestamp: Date.now(), backend: backend.port, latency: laten, requests: backend.currentRequests });
+                backend.avgLatency = alpha*laten + (1-alpha)*avgLatency;
                 cleanup();
             });
             res.on('close', cleanup);
@@ -57,14 +59,13 @@ function roundRobin(PORT=3000, backends = [], history =[], index = 0) {
             res.writeHead(500, { 'Content-Type': 'text/plain' });
             res.end('Internal Server Error');
             cleanup();
-        })
+        });
 
 
-    }
-    );
+    });
 
     return balancer;
 
 };
 
-export { roundRobin};
+export {roundRobin};

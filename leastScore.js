@@ -11,6 +11,8 @@ function leastScore(backends = [], alpha) {
 
     }
 
+    backends = backends.filter(b => b.health !== 0);
+
     const balancer = http.createServer((req, res) => {
 
         const backend = backends.reduce((a, b) => {
