@@ -1,0 +1,32 @@
+# Server configuration
+port: 3000
+
+# Load balancing strategy
+# Options: leastConn | roundRobin | leastLatency
+strategy: leastConn
+
+# Exponential weighted moving average factor for latency
+alpha: 0.2
+
+healthCheck:
+  interval: 1000        # ms between health polls
+  path: /health         # endpoint to check
+  timeout: 3000         # ms before marking unhealthy
+
+metrics:
+  interval: 5000        # ms between metric snapshots
+  historySize: 100      # max stored snapshots
+
+# Backend services
+backends:
+  - host: localhost
+    port: 3001
+
+  - host: localhost
+    port: 3002
+
+  - host: localhost
+    port: 3003
+
+  - host: localhost
+    port: 3004
