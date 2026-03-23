@@ -12,8 +12,19 @@ function createBalancer(strategy, backends = [], history = [], alpha = 0.2, wait
         }
 
         let cleaned = false;
+        let failed = false;
 
-        const healthyBackends = backends.filter(b => b.health !== 0);
+        const healthyBackends = backends.filter(b => {
+
+            if (b.health === 0) return false;
+
+            if (b.health === 1) {
+                if (b.currentRequests > 0) return false;
+                return true; // allow one probe
+            }
+
+            return true; // health === 2
+        });
 
         if (healthyBackends.length === 0) {
             res.writeHead(503);
@@ -30,6 +41,14 @@ function createBalancer(strategy, backends = [], history = [], alpha = 0.2, wait
             if (cleaned) return;
             cleaned = true;
             backend.currentRequests--;
+
+        }
+
+        function markFailure() {
+            if (failed) return;
+            failed = true;
+            backend.failures++;
+            backend.consecutiveFails++;
         }
 
         const options = {
@@ -58,23 +77,36 @@ function createBalancer(strategy, backends = [], history = [], alpha = 0.2, wait
                         alpha * laten + (1 - alpha) * backend.avgLatency;
                 }
 
+                if (proxyRes.statusCode >= 200 && proxyRes.statusCode < 400) {
+                    backend.success++;
+                    if (backend.health === 1) {
+                        backend.health = 2; // recovered
+                    }
+                    backend.consecutiveFails = 0;
+                } else {
+                    
+                    if (backend.health === 1) {
+                        backend.health = 0;
+                        backend.lastFailureTime = Date.now();
+                    }
+                    markFailure();
+                }
+
+
                 cleanup();
             });
 
-            proxyRes.on('error', cleanup);
+            proxyRes.on('error', markFailure, cleanup);
         });
 
-        proxyReq.on('error', (err) => {
-            console.error(`Proxy error: ${err.message}`);
-            cleanup();
-        });
-
+      
         req.on('aborted', cleanup);
         res.on('close', cleanup);
 
         // timeout protection
         proxyReq.setTimeout(waitoff, () => {
             proxyReq.destroy();
+            markFailure();
             cleanup();
         });
 
@@ -82,8 +114,10 @@ function createBalancer(strategy, backends = [], history = [], alpha = 0.2, wait
         proxyReq.on('end', cleanup);
         proxyReq.on('error', (err) => {
             console.error(`Error in proxy request: ${err.message}`);
-            res.writeHead(500, { 'Content-Type': 'text/plain' });
-            res.end('Internal Server Error');
+            res.writeHead(502, { 'Content-Type': 'text/plain' });
+            res.end('Bad Gateway');
+
+            markFailure();
             cleanup();
         });
 
