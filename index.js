@@ -1,6 +1,6 @@
 import { leastConn, roundRobin, leastLaten, leastScore } from './algo.js';
 import { createBalancer } from './balancer.js';
-import { pollHealth, genMetrics, loadConfig } from './utility.js';
+import { pollHealth, passiveHealth, genMetrics, loadConfig } from './utility.js';
 
 
 
@@ -48,9 +48,14 @@ console.log(`Using strategy: ${lbConfig.strategy}`);
 
 const balancer = createBalancer(strategyFn, backends, history, lbConfig.alpha);
 
+//setInterval(
+//    () => pollHealth(backends, lbConfig.healthCheck.path),
+//    lbConfig.healthCheck.interval
+//);
+
 setInterval(
-    () => pollHealth(backends, lbConfig.healthCheck.path),
-    lbConfig.healthCheck.interval
+    () => passiveHealth(backends, 5, 3000),
+    1000   
 );
 
 setInterval(
