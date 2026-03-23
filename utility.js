@@ -41,6 +41,25 @@ function pollHealth(backends = [], path = '/health') {
 
 }
 
+function passiveHealth(backends=[], healthThreshold, cooldown){
+
+    const now = Date.now()
+
+    backends.forEach((b)=> {
+        if(b.consecutiveFails > healthThreshold && b.health === 2){
+            b.health = 0;
+            b.lastFailureTime = now;
+        }
+
+
+        if (b.health === 0 && now - b.lastFailureTime > cooldown) {
+            b.health = 1; // degraded (probing state)
+        }
+
+
+    })
+}
+
 
 function genMetrics(backends = [], history = [], historySize = 100) {
 
@@ -67,6 +86,6 @@ async function loadConfig(path = "./config.yaml") {
 }
 
 
-export { pollHealth, genMetrics, loadConfig };
+export { pollHealth, passiveHealth, genMetrics, loadConfig };
 
 
